@@ -3,6 +3,9 @@ package ru.practicum.item;
 import ru.practicum.item.dto.ItemDto;
 
 public class ItemMapper {
+
+    private ItemMapper() { }
+
     public static ItemDto toDto(Item item) {
         ItemDto dto = new ItemDto();
         dto.setId(item.getId());

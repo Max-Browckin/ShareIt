@@ -1,13 +1,15 @@
 package ru.practicum.item;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 import ru.practicum.item.dto.ItemDto;
 
 import java.util.List;
 
-@RestController
+@Controller
 @RequestMapping("/items")
 @RequiredArgsConstructor
 public class ItemController {
@@ -16,24 +18,26 @@ public class ItemController {
     @PostMapping
     public ResponseEntity<ItemDto> create(
             @RequestHeader("X-Sharer-User-Id") Long userId,
-            @RequestBody ItemDto dto
+            @Valid @RequestBody ItemDto dto
     ) {
-        return ResponseEntity.ok(itemService.create(dto, userId));
+        var created = itemService.create(dto, userId);
+        return ResponseEntity.ok(created);
     }
 
     @PatchMapping("/{itemId}")
     public ResponseEntity<ItemDto> update(
-            @PathVariable("itemId") Long itemId,
             @RequestHeader("X-Sharer-User-Id") Long userId,
+            @PathVariable Long itemId,
             @RequestBody ItemDto dto
     ) {
-        return ResponseEntity.ok(itemService.update(itemId, dto, userId));
+        var updated = itemService.update(itemId, dto, userId);
+        return ResponseEntity.ok(updated);
     }
 
     @GetMapping("/{itemId}")
     public ResponseEntity<ItemDto> getById(
-            @PathVariable("itemId") Long itemId,
-            @RequestHeader("X-Sharer-User-Id") Long userId
+            @RequestHeader("X-Sharer-User-Id") Long userId,
+            @PathVariable Long itemId
     ) {
         return ResponseEntity.ok(itemService.getById(itemId, userId));
     }
@@ -46,9 +50,7 @@ public class ItemController {
     }
 
     @GetMapping("/search")
-    public ResponseEntity<List<ItemDto>> search(
-            @RequestParam("text") String text
-    ) {
+    public ResponseEntity<List<ItemDto>> search(@RequestParam("text") String text) {
         return ResponseEntity.ok(itemService.search(text));
     }
 }

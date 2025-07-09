@@ -1,35 +1,38 @@
 package ru.practicum.user;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 import ru.practicum.user.dto.UserDto;
 
 import java.util.List;
 
-@RestController
+@Controller
 @RequestMapping("/users")
 @RequiredArgsConstructor
 public class UserController {
     private final UserService userService;
 
     @PostMapping
-    public ResponseEntity<UserDto> create(@RequestBody UserDto dto) {
-        return ResponseEntity.ok(userService.create(dto));
+    public ResponseEntity<UserDto> create(@Valid @RequestBody UserDto dto) {
+        var created = userService.create(dto);
+        return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
     @PatchMapping("/{userId}")
     public ResponseEntity<UserDto> update(
-            @PathVariable("userId") Long userId,
+            @PathVariable Long userId,
             @RequestBody UserDto dto
     ) {
-        return ResponseEntity.ok(userService.update(userId, dto));
+        var updated = userService.update(userId, dto);
+        return ResponseEntity.ok(updated);
     }
 
     @GetMapping("/{userId}")
-    public ResponseEntity<UserDto> getById(
-            @PathVariable("userId") Long userId
-    ) {
+    public ResponseEntity<UserDto> getById(@PathVariable Long userId) {
         return ResponseEntity.ok(userService.getById(userId));
     }
 
@@ -39,9 +42,7 @@ public class UserController {
     }
 
     @DeleteMapping("/{userId}")
-    public ResponseEntity<Void> delete(
-            @PathVariable("userId") Long userId
-    ) {
+    public ResponseEntity<Void> delete(@PathVariable Long userId) {
         userService.delete(userId);
         return ResponseEntity.ok().build();
     }

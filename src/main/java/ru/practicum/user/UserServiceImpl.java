@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
+import ru.practicum.exception.EmailAlreadyExistsException;
 import ru.practicum.user.dto.UserDto;
 
 import java.util.List;
@@ -12,69 +13,55 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
-    private final UserRepository repository;
+    private final UserRepository repo;
+    private final UserMapper mapper;
 
     @Override
     public UserDto create(UserDto dto) {
-        if (dto.getEmail() == null
-                || dto.getEmail().isBlank()
-                || !dto.getEmail().contains("@")) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid email");
-        }
-
-        boolean exists = repository.findAll().stream()
-                .anyMatch(u -> u.getEmail().equalsIgnoreCase(dto.getEmail()));
-        if (exists) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Email already exists");
-        }
-        var user = UserMapper.toModel(dto);
-        var saved = repository.save(user);
-        return UserMapper.toDto(saved);
+        repo.findByEmail(dto.getEmail()).ifPresent(u ->
+                { throw new EmailAlreadyExistsException("Email already exists: " + dto.getEmail()); }
+        );
+        var model = mapper.toModel(dto);
+        var saved = repo.save(model);
+        return mapper.toDto(saved);
     }
 
     @Override
-    public UserDto update(Long id, UserDto dto) {
-        var user = repository.findById(id)
+    public UserDto update(Long userId, UserDto dto) {
+        var existing = repo.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
-        if (dto.getEmail() != null) {
-            if (dto.getEmail().isBlank() || !dto.getEmail().contains("@")) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid email");
-            }
-            boolean conflict = repository.findAll().stream()
-                    .anyMatch(u -> !u.getId().equals(id)
-                            && u.getEmail().equalsIgnoreCase(dto.getEmail()));
-            if (conflict) {
-                throw new ResponseStatusException(HttpStatus.CONFLICT, "Email already exists");
-            }
-            user.setEmail(dto.getEmail());
-        }
+
         if (dto.getName() != null) {
-            user.setName(dto.getName());
+            existing.setName(dto.getName());
         }
-        var updated = repository.save(user);
-        return UserMapper.toDto(updated);
+        if (dto.getEmail() != null) {
+            repo.findByEmail(dto.getEmail())
+                    .filter(u -> !u.getId().equals(userId))
+                    .ifPresent(u -> { throw new EmailAlreadyExistsException("Email already exists: " + dto.getEmail()); });
+            existing.setEmail(dto.getEmail());
+        }
+
+        var updated = repo.update(existing);
+        return mapper.toDto(updated);
     }
 
     @Override
-    public UserDto getById(Long id) {
-        var user = repository.findById(id)
+    public UserDto getById(Long userId) {
+        var user = repo.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
-        return UserMapper.toDto(user);
+        return mapper.toDto(user);
     }
 
     @Override
     public List<UserDto> getAll() {
-        return repository.findAll().stream()
-                .map(UserMapper::toDto)
+        return repo.findAll().stream()
+                .map(mapper::toDto)
                 .collect(Collectors.toList());
     }
 
     @Override
-    public void delete(Long id) {
-        boolean existed = repository.findById(id).isPresent();
-        repository.delete(id);
-        if (!existed) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found");
-        }
+    public void delete(Long userId) {
+        repo.delete(userId);
     }
 }
+

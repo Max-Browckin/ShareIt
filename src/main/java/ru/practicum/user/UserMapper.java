@@ -1,9 +1,11 @@
 package ru.practicum.user;
 
+import org.springframework.stereotype.Component;
 import ru.practicum.user.dto.UserDto;
 
+@Component
 public class UserMapper {
-    public static UserDto toDto(User user) {
+    public UserDto toDto(User user) {
         UserDto dto = new UserDto();
         dto.setId(user.getId());
         dto.setName(user.getName());
