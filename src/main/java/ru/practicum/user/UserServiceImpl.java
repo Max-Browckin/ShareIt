@@ -1,10 +1,11 @@
 package ru.practicum.user;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
-import org.springframework.web.server.ResponseStatusException;
+import org.springframework.transaction.annotation.Transactional;
 import ru.practicum.exception.EmailAlreadyExistsException;
+import ru.practicum.exception.UserNotFoundException;
 import ru.practicum.user.dto.UserDto;
 
 import java.util.List;
@@ -12,56 +13,57 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class UserServiceImpl implements UserService {
-    private final UserRepository repo;
-    private final UserMapper mapper;
+
+    private final UserRepository userRepository;
+    private final UserMapper     userMapper;
 
     @Override
-    public UserDto create(UserDto dto) {
-        repo.findByEmail(dto.getEmail()).ifPresent(u ->
-                { throw new EmailAlreadyExistsException("Email already exists: " + dto.getEmail()); }
-        );
-        var model = mapper.toModel(dto);
-        var saved = repo.save(model);
-        return mapper.toDto(saved);
+    @Transactional
+    public UserDto create(UserDto userDto) {
+        if (userRepository.existsByEmail(userDto.getEmail())) {
+            throw new EmailAlreadyExistsException("Пользователь с e-mail " + userDto.getEmail() + " уже существует");
+        }
+        return userMapper.toDto(userRepository.save(userMapper.toEntity(userDto)));
     }
 
     @Override
-    public UserDto update(Long userId, UserDto dto) {
-        var existing = repo.findById(userId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
-
-        if (dto.getName() != null) {
-            existing.setName(dto.getName());
-        }
-        if (dto.getEmail() != null) {
-            repo.findByEmail(dto.getEmail())
-                    .filter(u -> !u.getId().equals(userId))
-                    .ifPresent(u -> { throw new EmailAlreadyExistsException("Email already exists: " + dto.getEmail()); });
-            existing.setEmail(dto.getEmail());
-        }
-
-        var updated = repo.update(existing);
-        return mapper.toDto(updated);
+    public UserDto getById(Long id) {
+        return userMapper.toDto(
+                userRepository.findById(id).orElseThrow(() ->
+                        new UserNotFoundException("User not found: " + id)));
     }
 
     @Override
-    public UserDto getById(Long userId) {
-        var user = repo.findById(userId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
-        return mapper.toDto(user);
+    @Transactional
+    public UserDto update(Long id, UserDto userDto) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new UserNotFoundException("User not found: " + id));
+
+        if (userDto.getEmail() != null && !user.getEmail().equals(userDto.getEmail())
+                && userRepository.existsByEmail(userDto.getEmail())) {
+            throw new EmailAlreadyExistsException("E-mail уже занят: " + userDto.getEmail());
+        }
+
+        if (userDto.getName() != null)  user.setName(userDto.getName().trim());
+        if (userDto.getEmail() != null) user.setEmail(userDto.getEmail().trim());
+
+        return userMapper.toDto(userRepository.save(user));
+    }
+
+    @Override
+    @Transactional
+    public void delete(Long id) {
+        userRepository.deleteById(id);
     }
 
     @Override
     public List<UserDto> getAll() {
-        return repo.findAll().stream()
-                .map(mapper::toDto)
+        return userRepository.findAll()
+                .stream()
+                .map(userMapper::toDto)
                 .collect(Collectors.toList());
-    }
-
-    @Override
-    public void delete(Long userId) {
-        repo.delete(userId);
     }
 }
 

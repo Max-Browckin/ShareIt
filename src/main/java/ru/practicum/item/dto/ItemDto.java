@@ -1,10 +1,13 @@
 package ru.practicum.item.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
+import ru.practicum.booking.dto.BookingShortDto;
+import ru.practicum.comments.dto.CommentDto;
+
+import java.util.List;
 
 @Data
 public class ItemDto {
@@ -21,4 +24,8 @@ public class ItemDto {
 
     @JsonProperty(access = JsonProperty.Access.READ_ONLY)
     private Long ownerId;
+
+    private BookingShortDto lastBooking;
+    private BookingShortDto nextBooking;
+    private List<CommentDto> comments;
 }

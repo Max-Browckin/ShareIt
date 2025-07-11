@@ -1,6 +1,7 @@
 package ru.practicum.exception;
 
 import com.fasterxml.jackson.databind.exc.InvalidFormatException;
+import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -19,36 +20,79 @@ import java.util.stream.Collectors;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    // 404 для "не найдено"
+    @ExceptionHandler({
+            ItemNotFoundException.class,
+            UserNotFoundException.class,
+            BookingNotFoundException.class
+    })
+    public ResponseEntity<Map<String, String>> handleNotFound(RuntimeException ex) {
+        log.warn("Not found: {}", ex.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(Map.of("error", ex.getMessage()));
+    }
+
+
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<Map<String, String>> handleAccessDenied(AccessDeniedException ex) {
+        log.warn("Access denied: {}", ex.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(Map.of("error", ex.getMessage()));
+    }
+
+
+    @ExceptionHandler(IllegalBookingStateException.class)
+    public ResponseEntity<Map<String, String>> handleIllegalState(IllegalBookingStateException ex) {
+        log.warn("Illegal booking state: {}", ex.getMessage());
+        return ResponseEntity
+                .badRequest()
+                .body(Map.of("error", ex.getMessage()));
+    }
+
+
     @ExceptionHandler(EmailAlreadyExistsException.class)
-    public ResponseEntity<Map<String, String>> handleEmailExists(EmailAlreadyExistsException ex) {
+    public ResponseEntity<Map<String, String>> handleEmailConflict(EmailAlreadyExistsException ex) {
         log.warn("Email conflict: {}", ex.getMessage());
         return ResponseEntity
                 .status(HttpStatus.CONFLICT)
                 .body(Map.of("error", ex.getMessage()));
     }
 
+
     @ExceptionHandler(ResponseStatusException.class)
-    public ResponseEntity<Map<String, String>> handleResponseStatus(ResponseStatusException ex) {
+    public ResponseEntity<Map<String, String>> handleStatusException(ResponseStatusException ex) {
         log.warn("API error: {}", ex.getMessage());
         return ResponseEntity
                 .status(ex.getStatusCode())
                 .body(Map.of("error", ex.getReason()));
     }
 
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, String>> handleValidation(MethodArgumentNotValidException ex) {
-        Map<String, String> errors = ex.getBindingResult()
-                .getFieldErrors().stream()
-                .collect(Collectors.toMap(
-                        FieldError::getField,
-                        FieldError::getDefaultMessage,
-                        (a,b)->a
-                ));
+        String errors = ex.getBindingResult().getFieldErrors().stream()
+                .map(FieldError::getDefaultMessage)
+                .collect(Collectors.joining("; "));
         log.warn("Validation failed: {}", errors);
         return ResponseEntity
                 .badRequest()
-                .body(Map.of("errors", errors.toString()));
+                .body(Map.of("error", errors));
     }
+
+
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<Map<String, String>> handleConstraint(ConstraintViolationException ex) {
+        String errors = ex.getConstraintViolations().stream()
+                .map(v -> v.getMessage())
+                .collect(Collectors.joining("; "));
+        log.warn("Constraint violation: {}", errors);
+        return ResponseEntity
+                .badRequest()
+                .body(Map.of("error", errors));
+    }
+
 
     @ExceptionHandler(MissingRequestHeaderException.class)
     public ResponseEntity<Map<String, String>> handleMissingHeader(MissingRequestHeaderException ex) {
@@ -58,19 +102,18 @@ public class GlobalExceptionHandler {
                 .body(Map.of("error", "Required header '" + ex.getHeaderName() + "' is missing"));
     }
 
+
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<Map<String, String>> handleBadJson(HttpMessageNotReadableException ex) {
-        String msg = ex.getCause() instanceof InvalidFormatException
-                ? "Invalid format: " + ex.getCause().getMessage()
-                : "Malformed JSON";
-        log.warn("Bad request JSON: {}", msg);
+        log.warn("Bad JSON: {}", ex.getMessage());
         return ResponseEntity
                 .badRequest()
-                .body(Map.of("error", msg));
+                .body(Map.of("error", "Malformed JSON"));
     }
 
+
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<Map<String, String>> handleAllOther(Exception ex) {
+    public ResponseEntity<Map<String, String>> handleAll(Exception ex) {
         log.error("Unexpected error", ex);
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
