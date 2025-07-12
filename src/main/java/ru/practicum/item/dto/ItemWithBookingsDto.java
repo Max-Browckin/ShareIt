@@ -6,7 +6,6 @@ import ru.practicum.comments.dto.CommentDto;
 
 import java.util.List;
 
-
 @Data
 public class ItemWithBookingsDto extends ItemDto {
     private BookingShortDto lastBooking;

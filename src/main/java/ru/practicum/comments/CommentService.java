@@ -1,7 +1,5 @@
 package ru.practicum.comments;
 
-
-
 import ru.practicum.comments.dto.CommentDto;
 
 import java.util.List;

@@ -3,7 +3,6 @@ package ru.practicum.comments;
 import org.springframework.stereotype.Component;
 import ru.practicum.comments.dto.CommentDto;
 
-
 @Component
 public class CommentMapper {
     public CommentDto toDto(Comment comment) {
