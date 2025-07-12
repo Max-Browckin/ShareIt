@@ -1,7 +1,7 @@
 package ru.practicum.booking;
 
 import jakarta.persistence.*;
-import lombok.Data;
+import lombok.*;
 import ru.practicum.item.Item;
 import ru.practicum.user.User;
 
@@ -9,7 +9,10 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "bookings")
-@Data
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
 public class Booking {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

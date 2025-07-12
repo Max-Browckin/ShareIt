@@ -6,8 +6,7 @@ import ru.practicum.booking.BookingRepository;
 import ru.practicum.booking.BookingStatus;
 import ru.practicum.comments.dto.CommentDto;
 import ru.practicum.exception.AccessDeniedException;
-import ru.practicum.exception.ItemNotFoundException;
-import ru.practicum.exception.UserNotFoundException;
+import ru.practicum.exception.NotFoundException;
 import ru.practicum.item.ItemRepository;
 import ru.practicum.user.UserRepository;
 
@@ -19,14 +18,14 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class CommentServiceImpl implements CommentService {
     private final CommentRepository commentRepository;
-    private final BookingRepository bookingRepository; // <== Важно!
+    private final BookingRepository bookingRepository;
     private final CommentMapper commentMapper;
     private final ItemRepository itemRepository;
     private final UserRepository userRepository;
 
     @Override
     public CommentDto addComment(Long itemId, Long authorId, CommentDto dto) {
-        // Проверка: был ли у пользователя хоть один завершённый booking на этот item
+
         boolean canComment = bookingRepository.existsByBookerIdAndItemIdAndStatusAndEndBefore(
                 authorId, itemId, BookingStatus.APPROVED, LocalDateTime.now());
         if (!canComment) {
@@ -34,9 +33,9 @@ public class CommentServiceImpl implements CommentService {
         }
         Comment comment = commentMapper.toEntity(dto);
         comment.setItem(itemRepository.findById(itemId)
-                .orElseThrow(() -> new ItemNotFoundException("Item not found")));
+                .orElseThrow(() -> new NotFoundException("Item not found")));
         comment.setAuthor(userRepository.findById(authorId)
-                .orElseThrow(() -> new UserNotFoundException("User not found")));
+                .orElseThrow(() -> new NotFoundException("User not found")));
         comment.setCreated(LocalDateTime.now());
         return commentMapper.toDto(commentRepository.save(comment));
     }

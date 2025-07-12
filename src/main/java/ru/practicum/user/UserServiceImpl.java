@@ -1,11 +1,10 @@
 package ru.practicum.user;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.practicum.exception.EmailAlreadyExistsException;
-import ru.practicum.exception.UserNotFoundException;
+import ru.practicum.exception.NotFoundException;
 import ru.practicum.user.dto.UserDto;
 
 import java.util.List;
@@ -32,14 +31,14 @@ public class UserServiceImpl implements UserService {
     public UserDto getById(Long id) {
         return userMapper.toDto(
                 userRepository.findById(id).orElseThrow(() ->
-                        new UserNotFoundException("User not found: " + id)));
+                        new NotFoundException("User not found: " + id)));
     }
 
     @Override
     @Transactional
     public UserDto update(Long id, UserDto userDto) {
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new UserNotFoundException("User not found: " + id));
+                .orElseThrow(() -> new NotFoundException("User not found: " + id));
 
         if (userDto.getEmail() != null && !user.getEmail().equals(userDto.getEmail())
                 && userRepository.existsByEmail(userDto.getEmail())) {

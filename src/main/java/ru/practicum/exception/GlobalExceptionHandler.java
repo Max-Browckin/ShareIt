@@ -1,6 +1,5 @@
 package ru.practicum.exception;
 
-import com.fasterxml.jackson.databind.exc.InvalidFormatException;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -20,11 +19,8 @@ import java.util.stream.Collectors;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    // 404 для "не найдено"
     @ExceptionHandler({
-            ItemNotFoundException.class,
-            UserNotFoundException.class,
-            BookingNotFoundException.class
+            NotFoundException.class,
     })
     public ResponseEntity<Map<String, String>> handleNotFound(RuntimeException ex) {
         log.warn("Not found: {}", ex.getMessage());

@@ -40,8 +40,6 @@ public class BookingMapper {
         BookingShortDto dto = new BookingShortDto();
         dto.setId(booking.getId());
         dto.setBookerId(booking.getBooker().getId());
-        // dto.setStart(booking.getStart());
-        // dto.setEnd(booking.getEnd());
         return dto;
     }
 

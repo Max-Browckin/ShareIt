@@ -5,9 +5,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.practicum.booking.dto.BookingDto;
 import ru.practicum.exception.AccessDeniedException;
-import ru.practicum.exception.BookingNotFoundException;
-import ru.practicum.exception.ItemNotFoundException;
-import ru.practicum.exception.UserNotFoundException;
+import ru.practicum.exception.NotFoundException;
 import ru.practicum.item.Item;
 import ru.practicum.item.ItemRepository;
 import ru.practicum.user.User;
@@ -29,7 +27,7 @@ public class BookingServiceImpl implements BookingService {
     @Transactional
     public BookingDto create(Long userId, BookingDto bookingDto) {
         Item item = itemRepository.findById(bookingDto.getItemId())
-                .orElseThrow(() -> new ItemNotFoundException("Item not found: " + bookingDto.getItemId()));
+                .orElseThrow(() -> new NotFoundException("Item not found: " + bookingDto.getItemId()));
 
         if (!item.getAvailable()) {
             throw new AccessDeniedException("Item is not available for booking");
@@ -40,7 +38,7 @@ public class BookingServiceImpl implements BookingService {
         }
 
         User booker = userRepository.findById(userId)
-                .orElseThrow(() -> new UserNotFoundException("User not found: " + userId));
+                .orElseThrow(() -> new NotFoundException("User not found: " + userId));
 
         Booking booking = bookingMapper.toEntity(bookingDto);
         booking.setBooker(booker);
@@ -56,7 +54,7 @@ public class BookingServiceImpl implements BookingService {
     @Transactional
     public BookingDto approve(Long ownerId, Long bookingId, boolean approved) {
         Booking booking = bookingRepository.findById(bookingId)
-                .orElseThrow(() -> new BookingNotFoundException("Booking not found: " + bookingId));
+                .orElseThrow(() -> new NotFoundException("Booking not found: " + bookingId));
 
         if (!booking.getItem().getOwner().getId().equals(ownerId)) {
             throw new AccessDeniedException("Only the owner can approve the booking");
@@ -73,7 +71,7 @@ public class BookingServiceImpl implements BookingService {
     @Override
     public BookingDto getById(Long userId, Long bookingId) {
         Booking booking = bookingRepository.findById(bookingId)
-                .orElseThrow(() -> new BookingNotFoundException("Booking not found: " + bookingId));
+                .orElseThrow(() -> new NotFoundException("Booking not found: " + bookingId));
 
         if (!booking.getBooker().getId().equals(userId) &&
                 !booking.getItem().getOwner().getId().equals(userId)) {
@@ -86,7 +84,7 @@ public class BookingServiceImpl implements BookingService {
     @Override
     public List<BookingDto> getAllByBooker(Long userId, String state) {
         userRepository.findById(userId)
-                .orElseThrow(() -> new UserNotFoundException("User not found: " + userId));
+                .orElseThrow(() -> new NotFoundException("User not found: " + userId));
 
         List<Booking> bookings = bookingRepository.findByBookerId(userId);
         return filterAndMap(bookings, state);
@@ -95,7 +93,7 @@ public class BookingServiceImpl implements BookingService {
     @Override
     public List<BookingDto> getAllByOwner(Long userId, String state) {
         userRepository.findById(userId)
-                .orElseThrow(() -> new UserNotFoundException("User not found: " + userId));
+                .orElseThrow(() -> new NotFoundException("User not found: " + userId));
 
         List<Booking> bookings = bookingRepository.findByItemOwnerId(userId);
         return filterAndMap(bookings, state);
