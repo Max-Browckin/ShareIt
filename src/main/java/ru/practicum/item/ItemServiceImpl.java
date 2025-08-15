@@ -1,90 +1,169 @@
 package ru.practicum.item;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-import org.springframework.web.server.ResponseStatusException;
+import org.springframework.transaction.annotation.Transactional;
+import ru.practicum.booking.Booking;
+import ru.practicum.booking.BookingMapper;
+import ru.practicum.booking.BookingRepository;
+import ru.practicum.booking.BookingStatus;
+import ru.practicum.comments.Comment;
+import ru.practicum.comments.CommentMapper;
+import ru.practicum.comments.CommentRepository;
+import ru.practicum.comments.dto.CommentDto;
+import ru.practicum.exception.AccessDeniedException;
+import ru.practicum.exception.NotFoundException;
 import ru.practicum.item.dto.ItemDto;
+import ru.practicum.item.dto.ItemWithBookingsDto;
+import ru.practicum.user.User;
 import ru.practicum.user.UserRepository;
 
+import java.time.LocalDateTime;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class ItemServiceImpl implements ItemService {
-    private final ItemRepository itemRepo;
-    private final UserRepository userRepo;
+
+    private final ItemRepository itemRepository;
+    private final UserRepository userRepository;
+    private final ItemMapper itemMapper;
+    private final BookingRepository bookingRepository;
+    private final BookingMapper bookingMapper;
+    private final CommentRepository commentRepository;
+    private final CommentMapper commentMapper;
 
     @Override
-    public ItemDto create(ItemDto dto, Long userId) {
-        if (userRepo.findById(userId).isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found");
-        }
+    @Transactional
+    public ItemDto create(Long ownerId, ItemDto itemDto) {
+        User owner = userRepository.findById(ownerId)
+                .orElseThrow(() -> new NotFoundException("User not found: " + ownerId));
 
-        if (dto.getAvailable() == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Field 'available' must be specified");
-        }
+        Item item = itemMapper.toEntity(itemDto);
+        item.setOwner(owner);
 
-        if (dto.getName() == null || dto.getName().isBlank()
-                || dto.getDescription() == null || dto.getDescription().isBlank()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Name and description must be non-empty");
-        }
-
-        Item item = ItemMapper.toModel(dto);
-        item.setOwnerId(userId);
-        Item saved = itemRepo.save(item);
-        return ItemMapper.toDto(saved);
+        return itemMapper.toDto(itemRepository.save(item));
     }
 
     @Override
-    public ItemDto update(Long itemId, ItemDto dto, Long userId) {
-        Item item = itemRepo.findById(itemId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Item not found"));
-        if (!item.getOwnerId().equals(userId)) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Item not found");
+    @Transactional
+    public ItemDto update(Long ownerId, Long itemId, ItemDto itemDto) {
+        Item item = itemRepository.findById(itemId)
+                .orElseThrow(() -> new NotFoundException("Item not found: " + itemId));
+
+        if (!item.getOwner().getId().equals(ownerId)) {
+            throw new AccessDeniedException("Редактировать вещь может только владелец");
         }
-        if (dto.getName() != null) {
-            if (dto.getName().isBlank()) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Name must be non-empty");
-            }
-            item.setName(dto.getName());
-        }
-        if (dto.getDescription() != null) {
-            if (dto.getDescription().isBlank()) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Description must be non-empty");
-            }
-            item.setDescription(dto.getDescription());
-        }
-        if (dto.getAvailable() != null) {
-            item.setAvailable(dto.getAvailable());
-        }
-        Item updated = itemRepo.save(item);
-        return ItemMapper.toDto(updated);
+
+        if (itemDto.getName() != null) item.setName(itemDto.getName());
+        if (itemDto.getDescription() != null) item.setDescription(itemDto.getDescription());
+        if (itemDto.getAvailable() != null) item.setAvailable(itemDto.getAvailable());
+
+        return itemMapper.toDto(itemRepository.save(item));
     }
 
     @Override
-    public ItemDto getById(Long itemId, Long userId) {
-        return itemRepo.findById(itemId)
-                .map(ItemMapper::toDto)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Item not found"));
+    public ItemDto getById(Long userId, Long itemId) {
+        Item item = itemRepository.findById(itemId)
+                .orElseThrow(() -> new NotFoundException("Item not found: " + itemId));
+
+        ItemWithBookingsDto dto = itemMapper.toDtoWithBookings(item);
+        if (item.getOwner().getId().equals(userId)) {
+            enrichWithBookings(dto);
+        }
+
+        dto.setComments(commentRepository.findAllByItemId(itemId).stream()
+                .map(commentMapper::toDto)
+                .collect(Collectors.toList()));
+
+        return dto;
     }
 
     @Override
-    public List<ItemDto> getAll(Long userId) {
-        return itemRepo.findAll().stream()
-                .filter(i -> i.getOwnerId().equals(userId))
-                .map(ItemMapper::toDto)
+    public List<ItemDto> getAll(Long ownerId) {
+        List<Item> items = itemRepository.findAllByOwnerIdOrderByIdAsc(ownerId);
+
+        List<Long> itemIds = items.stream()
+                .map(Item::getId)
+                .collect(Collectors.toList());
+
+        Map<Long, List<Comment>> commentsByItemId = commentRepository.findAllByItemIdIn(itemIds).stream()
+                .collect(Collectors.groupingBy(comment -> comment.getItem().getId()));
+
+        return items.stream()
+                .map(item -> {
+                    ItemWithBookingsDto dto = itemMapper.toDtoWithBookings(item);
+                    enrichWithBookings(dto);
+                    dto.setComments(
+                            commentsByItemId.getOrDefault(item.getId(), List.of()).stream()
+                                    .map(commentMapper::toDto)
+                                    .collect(Collectors.toList())
+                    );
+                    return dto;
+                })
                 .collect(Collectors.toList());
     }
 
     @Override
-    public List<ItemDto> search(String text) {
-        if (text == null || text.isBlank()) {
-            return List.of();
+    @Transactional
+    public void delete(Long ownerId, Long itemId) {
+        Item item = itemRepository.findById(itemId)
+                .orElseThrow(() -> new NotFoundException("Item not found: " + itemId));
+
+        if (!item.getOwner().getId().equals(ownerId)) {
+            throw new AccessDeniedException("Удалить вещь может только владелец");
         }
-        return itemRepo.search(text).stream()
-                .map(ItemMapper::toDto)
-                .collect(Collectors.toList());
+
+        itemRepository.deleteById(itemId);
+    }
+
+    @Override
+    @Transactional
+    public CommentDto addComment(Long userId, Long itemId, CommentDto commentDto) {
+        User author = userRepository.findById(userId)
+                .orElseThrow(() -> new NotFoundException("User not found: " + userId));
+        Item item = itemRepository.findById(itemId)
+                .orElseThrow(() -> new NotFoundException("Item not found: " + itemId));
+
+        boolean hasBooking = bookingRepository.existsByItemIdAndBookerIdAndStatusAndEndBefore(
+                itemId, userId, BookingStatus.APPROVED, LocalDateTime.now());
+
+        if (!hasBooking) {
+            throw new AccessDeniedException("Вы не можете оставить отзыв, так как не брали вещь в аренду");
+        }
+
+        Comment comment = new Comment();
+        comment.setAuthor(author);
+        comment.setItem(item);
+        comment.setText(commentDto.getText());
+        comment.setCreated(LocalDateTime.now());
+
+        return commentMapper.toDto(commentRepository.save(comment));
+    }
+
+    private void enrichWithBookings(ItemWithBookingsDto dto) {
+        List<Booking> bookings = bookingRepository.findAllByItemIdAndStatus(dto.getId(), BookingStatus.APPROVED);
+
+        LocalDateTime now = LocalDateTime.now();
+        dto.setLastBooking(
+                bookings.stream()
+                        .filter(b -> b.getStart().isBefore(now))
+                        .max(Comparator.comparing(Booking::getStart))
+                        .map(bookingMapper::toShortDto)
+                        .orElse(null)
+        );
+
+        dto.setNextBooking(
+                bookings.stream()
+                        .filter(b -> b.getStart().isAfter(now))
+                        .min(Comparator.comparing(Booking::getStart))
+                        .map(bookingMapper::toShortDto)
+                        .orElse(null)
+        );
     }
 }
+

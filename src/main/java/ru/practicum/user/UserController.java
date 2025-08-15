@@ -2,48 +2,39 @@ package ru.practicum.user;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 import ru.practicum.user.dto.UserDto;
 
 import java.util.List;
 
-@Controller
+@RestController
 @RequestMapping("/users")
 @RequiredArgsConstructor
 public class UserController {
     private final UserService userService;
 
     @PostMapping
-    public ResponseEntity<UserDto> create(@Valid @RequestBody UserDto dto) {
-        var created = userService.create(dto);
-        return ResponseEntity.status(HttpStatus.CREATED).body(created);
+    public UserDto create(@RequestBody @Valid UserDto userDto) {
+        return userService.create(userDto);
     }
 
-    @PatchMapping("/{userId}")
-    public ResponseEntity<UserDto> update(
-            @PathVariable Long userId,
-            @RequestBody UserDto dto
-    ) {
-        var updated = userService.update(userId, dto);
-        return ResponseEntity.ok(updated);
+    @GetMapping("/{id}")
+    public UserDto getById(@PathVariable Long id) {
+        return userService.getById(id);
     }
 
-    @GetMapping("/{userId}")
-    public ResponseEntity<UserDto> getById(@PathVariable Long userId) {
-        return ResponseEntity.ok(userService.getById(userId));
+    @PatchMapping("/{id}")
+    public UserDto update(@PathVariable Long id, @RequestBody @Valid UserDto userDto) {
+        return userService.update(id, userDto);
+    }
+
+    @DeleteMapping("/{id}")
+    public void delete(@PathVariable Long id) {
+        userService.delete(id);
     }
 
     @GetMapping
-    public ResponseEntity<List<UserDto>> getAll() {
-        return ResponseEntity.ok(userService.getAll());
-    }
-
-    @DeleteMapping("/{userId}")
-    public ResponseEntity<Void> delete(@PathVariable Long userId) {
-        userService.delete(userId);
-        return ResponseEntity.ok().build();
+    public List<UserDto> getAll() {
+        return userService.getAll();
     }
 }
