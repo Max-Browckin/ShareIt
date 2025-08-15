@@ -106,7 +106,6 @@
                 <version>${maven-surefire-plugin.version}</version>
             </plugin>
 
-            <!-- Checkstyle на фазе verify -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-checkstyle-plugin</artifactId>
