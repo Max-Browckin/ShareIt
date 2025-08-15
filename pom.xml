@@ -1,8 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
-                             http://maven.apache.org/xsd/maven-4.0.0.xsd">
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 
     <modelVersion>4.0.0</modelVersion>
 
@@ -14,43 +13,38 @@
     </parent>
 
     <groupId>sobes</groupId>
-    <artifactId>later-spring-only</artifactId>
-    <version>1.0-SNAPSHOT</version>
+    <artifactId>shareit</artifactId>
+    <version>1.0.0</version>
     <packaging>jar</packaging>
+    <name>ShareIt</name>
+    <description>ShareIt application</description>
 
     <properties>
         <java.version>21</java.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <postgresql.version>42.6.0</postgresql.version>
         <mapstruct.version>1.5.5.Final</mapstruct.version>
+        <postgresql.version>42.6.0</postgresql.version>
+        <!-- фикс для новых версий сурафайра под JUnit 5 -->
+        <maven-surefire-plugin.version>3.2.5</maven-surefire-plugin.version>
+        <maven-checkstyle-plugin.version>3.2.0</maven-checkstyle-plugin.version>
     </properties>
 
     <dependencies>
-        <!-- Web -->
+        <!-- Spring -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
-
-        <!-- Validation -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-validation</artifactId>
         </dependency>
-
-        <!-- Lombok -->
-        <dependency>
-            <groupId>org.projectlombok</groupId>
-            <artifactId>lombok</artifactId>
-            <scope>provided</scope>
-        </dependency>
-
-        <!-- Database -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-jpa</artifactId>
         </dependency>
 
+        <!-- DB -->
         <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
@@ -64,52 +58,64 @@
             <artifactId>mapstruct</artifactId>
             <version>${mapstruct.version}</version>
         </dependency>
-
         <dependency>
             <groupId>org.mapstruct</groupId>
             <artifactId>mapstruct-processor</artifactId>
             <version>${mapstruct.version}</version>
             <scope>provided</scope>
         </dependency>
+
+        <!-- Lombok -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- Tests -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
         <plugins>
+            <!-- Build Spring Boot jar -->
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
             </plugin>
 
-            <!-- Для обработки аннотаций MapStruct -->
+            <!-- Компилятор под Java 21; включены аннотац. процессоры из зависимостей -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.11.0</version>
                 <configuration>
-                    <annotationProcessorPaths>
-                        <path>
-                            <groupId>org.mapstruct</groupId>
-                            <artifactId>mapstruct-processor</artifactId>
-                            <version>${mapstruct.version}</version>
-                        </path>
-                        <path>
-                            <groupId>org.projectlombok</groupId>
-                            <artifactId>lombok</artifactId>
-                            <version>1.18.30</version>
-                        </path>
-                        <path>
-                            <groupId>org.projectlombok</groupId>
-                            <artifactId>lombok-mapstruct-binding</artifactId>
-                            <version>0.2.0</version>
-                        </path>
-                    </annotationProcessorPaths>
+                    <release>${java.version}</release>
+                    <parameters>true</parameters>
                 </configuration>
             </plugin>
 
+            <!-- JUnit 5 -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>${maven-surefire-plugin.version}</version>
+            </plugin>
+
+            <!-- Checkstyle на фазе verify -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-checkstyle-plugin</artifactId>
-                <version>3.2.0</version>
+                <version>${maven-checkstyle-plugin.version}</version>
+                <configuration>
+                    <configLocation>checkstyle.xml</configLocation>
+                    <consoleOutput>true</consoleOutput>
+                    <failOnViolation>true</failOnViolation>
+                </configuration>
                 <executions>
                     <execution>
                         <phase>verify</phase>
@@ -118,12 +124,6 @@
                         </goals>
                     </execution>
                 </executions>
-                <configuration>
-                    <configLocation>checkstyle.xml</configLocation>
-                    <encoding>UTF-8</encoding>
-                    <consoleOutput>true</consoleOutput>
-                    <failOnViolation>true</failOnViolation>
-                </configuration>
             </plugin>
         </plugins>
     </build>
